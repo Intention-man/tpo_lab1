@@ -65,4 +65,16 @@ public class LeftistHeapTest {
         LeftistHeap heap = new LeftistHeap();
         assertThrows(IllegalStateException.class, heap::deleteMin);
     }
+
+    @Test
+    void testInsertSameElements() {
+        LeftistHeap heap = new LeftistHeap();
+        heap.insert(5);
+        heap.insert(6);
+        heap.insert(5);
+        assertEquals(5, heap.deleteMin());
+        assertEquals(5, heap.deleteMin());
+        assertEquals(6, heap.deleteMin());
+        assertTrue(heap.isEmpty());
+    }
 }
