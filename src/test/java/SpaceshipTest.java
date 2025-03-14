@@ -119,32 +119,105 @@ public class SpaceshipTest {
         assertTrue(zaphod.moveTo(secretRoom));
     }
 
+    @Test
+    void testAccessDeniedWithoutAction() {
+        StoryCharacter ford = new StoryCharacter("Форд", 10);
+        Location secretRoom = new Location("секретная комната");
+
+        secretRoom.addAccessRequirement("открыть дверь");
+
+        ford.setCurrentAction(null);
+
+        assertFalse(secretRoom.canAccess(ford));
+    }
 
     @Test
-    void testEnergyConsumptionAndActionChoice() {
-        Item sword = new Item("Меч", "острый", 20);
-        Item potion = new Item("Зелье", "восстановление", 15);
+    void testAccessDeniedWithUnrelatedAction() {
+        StoryCharacter ford = new StoryCharacter("Форд", 10);
+        Location secretRoom = new Location("секретная комната");
 
-        StoryCharacter hero = new StoryCharacter("Герой", 25);
+        secretRoom.addAccessRequirement("открыть дверь");
 
-        hero.chooseActionBasedOnItems(Arrays.asList(sword, potion));
+        Action unrelatedAction = new Action("прыгать", null);
+        ford.setCurrentAction(unrelatedAction);
 
-        assertEquals("использовать Меч", hero.getCurrentAction().getType());
-
-        hero.getCurrentAction().completeAction(hero);
-
-        assertThrows(IllegalStateException.class, () -> {
-            Action fight = new Action("использовать Зелье", potion);
-            fight.completeAction(hero);
-        });
-
-        assertThrows(IllegalStateException.class, () -> {
-            hero.chooseActionBasedOnItems(Arrays.asList(sword, potion));
-        });
-
-
-        assertEquals(5, hero.getEnergy());
+        assertFalse(secretRoom.canAccess(ford));
     }
+
+    @Test
+    void testAccessGrantedAfterCorrectActionCompleted() {
+        StoryCharacter ford = new StoryCharacter("Форд", 10);
+        Location secretRoom = new Location("секретная комната");
+
+        secretRoom.addAccessRequirement("открыть дверь");
+
+        Action unlockAction = new Action("открыть дверь", null);
+        ford.setCurrentAction(unlockAction);
+
+        assertFalse(secretRoom.canAccess(ford));
+
+        unlockAction.completeAction();
+
+        assertTrue(secretRoom.canAccess(ford));
+    }
+
+    @Test
+    void testMovementThrowsExceptionWithoutAccess() {
+        StoryCharacter zaphod = new StoryCharacter("Зафод");
+        Location bridge = new Location("мостик");
+        Location secretRoom = new Location("секретная комната");
+        Action hack = new Action("взломать", null);
+
+        secretRoom.addAccessRequirement("взломать");
+
+        zaphod.setCurrentLocation(bridge);
+        zaphod.setCurrentAction(hack);
+
+        assertThrows(IllegalStateException.class, () -> zaphod.moveTo(secretRoom));
+    }
+
+    @Test
+    void testSuccessfulMovementAfterAccessGranted() {
+        StoryCharacter zaphod = new StoryCharacter("Зафод");
+        Location bridge = new Location("мостик");
+        Location secretRoom = new Location("секретная комната");
+        Action hack = new Action("взломать", null);
+
+        secretRoom.addAccessRequirement("взломать");
+
+        zaphod.setCurrentLocation(bridge);
+        zaphod.setCurrentAction(hack);
+
+        hack.completeAction();
+
+        assertTrue(zaphod.moveTo(secretRoom));
+    }
+
+//    @Test
+//    void testEnergyConsumptionAndActionChoice() {
+//        Item sword = new Item("Меч", "острый", 20);
+//        Item potion = new Item("Зелье", "восстановление", 15);
+//
+//        StoryCharacter hero = new StoryCharacter("Герой", 25);
+//
+//        hero.chooseActionBasedOnItems(Arrays.asList(sword, potion));
+//
+//        assertEquals("использовать Меч", hero.getCurrentAction().getType());
+//
+//        hero.getCurrentAction().completeAction(hero);
+//
+//        assertThrows(IllegalStateException.class, () -> {
+//            Action fight = new Action("использовать Зелье", potion);
+//            fight.completeAction(hero);
+//        });
+//
+//        assertThrows(IllegalStateException.class, () -> {
+//            hero.chooseActionBasedOnItems(Arrays.asList(sword, potion));
+//        });
+//
+//
+//        assertEquals(5, hero.getEnergy());
+//    }
 
     @Test
     void testLocationUniqueVisitors() {
@@ -169,7 +242,53 @@ public class SpaceshipTest {
     }
 
     @Test
-    void testAccessWithEnergyAndActionCompletion() {
+    void testInitialActionChoice() {
+        Item sword = new Item("Меч", "острый", 20);
+        Item potion = new Item("Зелье", "восстановление", 15);
+        StoryCharacter hero = new StoryCharacter("Герой", 25);
+
+        hero.chooseActionBasedOnItems(Arrays.asList(sword, potion));
+        assertEquals("использовать Меч", hero.getCurrentAction().getType());
+    }
+
+    @Test
+    void testCompleteCurrentAction() {
+        Item sword = new Item("Меч", "острый", 20);
+        StoryCharacter hero = new StoryCharacter("Герой", 25);
+
+        hero.chooseActionBasedOnItems(Arrays.asList(sword));
+        hero.getCurrentAction().completeAction(hero);
+
+        assertEquals(5, hero.getEnergy());
+    }
+
+    @Test
+    void testInsufficientEnergyForAction() {
+        Item potion = new Item("Зелье", "восстановление", 15);
+        StoryCharacter hero = new StoryCharacter("Герой", 5);
+
+        assertThrows(IllegalStateException.class, () -> {
+            hero.chooseActionBasedOnItems(Arrays.asList(potion));
+        });
+    }
+
+    @Test
+    void testInsufficientEnergyAfterAction() {
+        Item sword = new Item("Меч", "острый", 20);
+        StoryCharacter hero = new StoryCharacter("Герой", 25);
+
+        hero.chooseActionBasedOnItems(Arrays.asList(sword));
+        hero.getCurrentAction().completeAction(hero);
+
+        assertThrows(IllegalStateException.class, () -> {
+            Item potion = new Item("Зелье", "восстановление", 15);
+            Action usePotion = new Action("использовать Зелье", potion);
+            usePotion.completeAction(hero);
+        });
+    }
+
+    @Test
+    void testAccessDeniedBeforeActionCompleted() {
         StoryCharacter thief = new StoryCharacter("Вор", 5);
         Location vault = new Location("Сокровищница");
         Action pickLock = new Action("взломать замок", new Item("Отмычка", "инструмент", 5));
@@ -178,11 +297,32 @@ public class SpaceshipTest {
         thief.setCurrentAction(pickLock);
 
         assertFalse(vault.canAccess(thief));
+    }
 
+    @Test
+    void testAccessGrantedAfterActionCompleted() {
+        StoryCharacter thief = new StoryCharacter("Вор", 5);
+        Location vault = new Location("Сокровищница");
+        Action pickLock = new Action("взломать замок", new Item("Отмычка", "инструмент", 5));
+
+        vault.addAccessRequirement("взломать замок");
+        thief.setCurrentAction(pickLock);
         pickLock.completeAction(thief);
+
         assertTrue(vault.canAccess(thief));
+    }
+
+    @Test
+    void testCharacterCanMoveToLocationAfterAccessGranted() {
+        StoryCharacter thief = new StoryCharacter("Вор", 5);
+        Location vault = new Location("Сокровищница");
+        Action pickLock = new Action("взломать замок", new Item("Отмычка", "инструмент", 5));
+
+        vault.addAccessRequirement("взломать замок");
+        thief.setCurrentAction(pickLock);
+        pickLock.completeAction(thief);
 
         assertTrue(thief.moveTo(vault));
-        assertEquals(thief.getCurrentLocation(), vault);
+        assertEquals(vault, thief.getCurrentLocation());
     }
 }
